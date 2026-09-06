@@ -1,0 +1,25 @@
+{
+  "name": "agent-track-worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
+    "test": "vitest run",
+    "typecheck": "wrangler types && tsc --noEmit",
+    "predeploy": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.1.4",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.129.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "API_TOKEN": {
+        "description": "Bearer token that agents and the web UI send. Generate one with: openssl rand -hex 32"
+      }
+    }
+  }
+}
