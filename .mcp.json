@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agent-track": {
+      "type": "http",
+      "url": "${AGENT_TRACK_URL}",
+      "headers": { "Authorization": "Bearer ${AGENT_TRACK_TOKEN}" }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "agent-track",
+  "owner": { "name": "Narek Gevorgyan" },
+  "metadata": { "description": "Self-hosted task tracking for coding agents (MCP server on Cloudflare + skill)." },
+  "plugins": [
+    {
+      "name": "agent-track",
+      "source": "./",
+      "description": "Persistent project → initiative → task board for agents. Requires AGENT_TRACK_URL and AGENT_TRACK_TOKEN in your environment.",
+      "category": "productivity"
+    }
+  ]
+}
