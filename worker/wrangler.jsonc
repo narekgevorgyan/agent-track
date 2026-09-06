@@ -4,6 +4,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "observability": { "enabled": true },
+  "workers_dev": true,
+  "preview_urls": false,
   // No database_id: wrangler auto-creates the database on first `wrangler deploy`
   // and writes the id back into this file.
   "d1_databases": [

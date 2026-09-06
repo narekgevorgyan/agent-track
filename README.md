@@ -26,11 +26,11 @@ git clone https://github.com/narekgevorgyan/agent-track
 cd agent-track/worker
 npm install
 npx wrangler login
-npm run deploy                      # applies migrations, auto-creates the D1 database, deploys
-openssl rand -hex 32 | npx wrangler secret put API_TOKEN
+echo "API_TOKEN=$(openssl rand -hex 32)" > .secrets   # keep this file; it is git-ignored
+npm run deploy -- --secrets-file .secrets                # creates the D1 database, deploys, applies migrations
 ```
 
-> First deploy on a brand-new account: if `predeploy` fails because the database does not exist yet, run `npx wrangler deploy` once (this creates it), then `npm run deploy` again.
+The first deploy needs the secret up front because `wrangler.jsonc` declares `API_TOKEN` as required. Later deploys are just `npm run deploy`. Rotate the token any time with `npx wrangler secret put API_TOKEN`.
 
 Open the Worker URL (`https://agent-track.<your-subdomain>.workers.dev`), paste the token, done.
 

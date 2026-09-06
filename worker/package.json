@@ -6,8 +6,8 @@
     "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
     "test": "vitest run",
     "typecheck": "wrangler types && tsc --noEmit",
-    "predeploy": "wrangler d1 migrations apply DB --remote",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "postdeploy": "wrangler d1 migrations apply DB --remote"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.1.4",
