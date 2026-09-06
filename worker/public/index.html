@@ -1,1 +1,48 @@
-<!doctype html><title>agent-track</title>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>agent-track</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f766e'/%3E%3Cpath d='M9 17l5 5 9-11' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="gate" class="gate" hidden>
+    <form class="gate-card" id="gate-form">
+      <div class="brand"><span class="logo"></span> agent-track</div>
+      <p>Paste the <code>API_TOKEN</code> you set on the Worker. It stays in this browser only.</p>
+      <input id="gate-token" type="password" autocomplete="off" placeholder="API token" required />
+      <button type="submit" class="btn primary">Open board</button>
+      <p class="gate-error" id="gate-error" hidden>That token was rejected.</p>
+    </form>
+  </div>
+
+  <div id="app" class="app" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <a class="brand" href="#/"><span class="logo"></span> agent-track</a>
+        <span class="live" id="live" title="Live updates"><span class="dot"></span></span>
+      </div>
+      <nav id="projects" class="projects"></nav>
+      <form id="new-project" class="inline-form">
+        <input id="new-project-name" placeholder="New project…" maxlength="200" />
+        <button class="btn small" type="submit">Add</button>
+      </form>
+      <div class="sidebar-bottom">
+        <label class="check"><input type="checkbox" id="show-archived" /> Show archived</label>
+        <button class="link" id="sign-out">Forget token</button>
+      </div>
+    </aside>
+
+    <main id="main" class="main"></main>
+
+    <aside id="drawer" class="drawer" hidden></aside>
+    <div id="drawer-backdrop" class="drawer-backdrop" hidden></div>
+  </div>
+
+  <div id="toasts" class="toasts"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
