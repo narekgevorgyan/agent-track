@@ -21,6 +21,7 @@
     drawerTaskId: null,
     showCancelled: false,
     filter: "",
+    descOpen: false,
     es: null,
     esErrors: 0,
     pollTimer: null,
@@ -85,6 +86,18 @@
   const typeSelect = (current) => `<select data-type-select>${TYPES.map((t) => `<option value="${t}" ${t === current ? "selected" : ""}>${t}</option>`).join("")}</select>`;
   const prioSelect = (current) => `<select data-prio-select>${[0, 1, 2, 3, 4].map((p) => `<option value="${p}" ${p === current ? "selected" : ""}>P${p}${p === 0 ? " urgent" : p === 4 ? " someday" : ""}</option>`).join("")}</select>`;
 
+  // Long descriptions collapse to one line so the board below stays visible.
+  const DESC_LIMIT = 140;
+  function descBlock(text, editAttr, placeholder) {
+    if (!text) return `<p class="desc editable" ${editAttr} title="Click to edit"><span class="hint">${placeholder}</span></p>`;
+    const long = text.length > DESC_LIMIT || text.includes("\n");
+    if (!long) return `<p class="desc editable" ${editAttr} title="Click to edit">${md(text)}</p>`;
+    return `<div class="desc-wrap ${S.descOpen ? "open" : ""}">
+      <p class="desc editable clamp" ${editAttr} title="Click to edit">${md(text)}</p>
+      <button class="link desc-toggle" data-toggle-desc>${S.descOpen ? "Show less" : "Read more"}</button>
+    </div>`;
+  }
+
   // ---------- routing ----------
   function parseRoute() {
     const h = location.hash.replace(/^#\/?/, "");
@@ -97,6 +110,7 @@
   }
   async function navigate() {
     S.route = parseRoute();
+    S.descOpen = false;
     closeDrawer();
     try {
       await loadForRoute();
@@ -252,7 +266,7 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
       <div class="page-head">
         <div>
           <h1 class="editable" data-edit-project="name" title="Click to rename">${esc(p.name)}</h1>
-          <p class="desc editable" data-edit-project="description" title="Click to edit">${p.description ? md(p.description) : '<span class="hint">Add a description…</span>'}</p>
+          ${descBlock(p.description, 'data-edit-project="description"', "Add a description…")}
         </div>
         <div class="head-actions">
           <span class="hint">slug <code>${esc(p.slug)}</code></span>
@@ -298,7 +312,7 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
       <div class="page-head">
         <div>
           <h1 class="editable" data-edit-initiative="name" title="Click to rename">${esc(i.name)}</h1>
-          <p class="desc editable" data-edit-initiative="description" title="Click to edit">${i.description ? md(i.description) : '<span class="hint">Add the goal…</span>'}</p>
+          ${descBlock(i.description, 'data-edit-initiative="description"', "Add the goal…")}
         </div>
         <div class="head-actions">
           <select data-init-status="${i.id}" class="btn small">${["active", "done", "cancelled"].map((s) => `<option value="${s}" ${s === i.status ? "selected" : ""}>${s}</option>`).join("")}</select>
@@ -498,6 +512,11 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
     });
     main.addEventListener("click", (e) => {
       const t = e.target;
+      if (t.matches("[data-toggle-desc]")) {
+        S.descOpen = !S.descOpen;
+        render();
+        return;
+      }
       if (t.closest("select, input, a, form, button") && !t.matches("[data-archive-project]")) return;
       if (t.matches("[data-archive-project]")) {
         patch(`/api/projects/${S.project.id}`, { archived: t.dataset.archiveProject === "1" }).then(refresh).catch(fail);

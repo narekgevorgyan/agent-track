@@ -115,6 +115,11 @@ textarea { width: 100%; resize: vertical; min-height: 90px; line-height: 1.5; }
 .page-head .desc { color: var(--muted); margin: 4px 0 0; white-space: pre-wrap; max-width: 760px; }
 .page-head .editable { cursor: text; border-radius: 6px; }
 .page-head .editable:hover { background: var(--panel-2); box-shadow: 0 0 0 4px var(--panel-2); }
+.desc-wrap { max-width: 760px; }
+.desc-wrap .desc.clamp { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; margin-bottom: 2px; }
+.desc-wrap.open .desc.clamp { display: block; overflow: visible; white-space: pre-wrap; }
+.desc-toggle { font-size: 12.5px; color: var(--accent); }
+.desc-toggle:hover { color: var(--accent); }
 .head-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* ---------- initiatives ---------- */
