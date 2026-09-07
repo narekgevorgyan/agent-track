@@ -19,5 +19,5 @@
   },
   // Set with: openssl rand -hex 32 | npx wrangler secret put API_TOKEN
   "secrets": { "required": ["API_TOKEN"] },
-  "vars": { "APP_VERSION": "0.1.0" }
+  "vars": { "APP_VERSION": "0.2.0" }
 }

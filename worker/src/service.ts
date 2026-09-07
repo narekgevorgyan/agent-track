@@ -63,7 +63,15 @@ function priorityOf(value: unknown): number {
  *  - bumps projects.updated_at (the SSE watermark).
  */
 export class Service {
-  constructor(private db: D1Database) {}
+  /** `baseUrl` is the public origin (from the request); links are relative when empty. */
+  constructor(private db: D1Database, private baseUrl = "") {}
+
+  private projectUrl(slug: string) { return `${this.baseUrl}/#/p/${encodeURIComponent(slug)}`; }
+  private initiativeUrl(slug: string, id: string) { return `${this.projectUrl(slug)}/i/${id}`; }
+  private taskUrl(slug: string, initiativeId: string, id: string) { return `${this.initiativeUrl(slug, initiativeId)}/t/${id}`; }
+  private projOut<T extends Omit<Project, "url">>(p: T): T & { url: string } { return { ...p, url: this.projectUrl(p.slug) }; }
+  private initOut<T extends Omit<Initiative, "url">>(i: T): T & { url: string } { return { ...i, url: this.initiativeUrl(i.project_slug, i.id) }; }
+  private taskOut<T extends Omit<Task, "url">>(t: T): T & { url: string } { return { ...t, url: this.taskUrl(t.project_slug, t.initiative_id, t.id) }; }
 
   // ---------- projects ----------
 
@@ -71,10 +79,10 @@ export class Service {
     const name = cleanText(input.name, "name", { required: true, max: 200 })!;
     const description = cleanText(input.description, "description") ?? "";
     const slug = slugify(name);
-    const existing = await first<Project>(this.db, "SELECT * FROM projects WHERE slug = ?", slug);
-    if (existing) return existing;
+    const existing = await first<Omit<Project, "url">>(this.db, "SELECT * FROM projects WHERE slug = ?", slug);
+    if (existing) return this.projOut(existing);
     const ts = now();
-    const project: Project = { id: newId(), slug, name, description, archived: 0, created_at: ts, updated_at: ts };
+    const project: Project = this.projOut({ id: newId(), slug, name, description, archived: 0, created_at: ts, updated_at: ts });
     await batch(this.db, [
       stmt(
         this.db,
@@ -93,7 +101,7 @@ export class Service {
 
   async getProjects(opts: { includeArchived?: boolean } = {}): Promise<ProjectSummary[]> {
     const where = opts.includeArchived ? "" : "WHERE p.archived = 0";
-    return all<ProjectSummary>(
+    const rows = await all<Omit<ProjectSummary, "url">>(
       this.db,
       `SELECT p.*,
         (SELECT COUNT(*) FROM initiatives i WHERE i.project_id = p.id AND i.status = 'active') AS initiatives,
@@ -101,21 +109,22 @@ export class Service {
         (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'blocked') AS blocked_tasks
        FROM projects p ${where} ORDER BY p.updated_at DESC`,
     );
+    return rows.map((p) => this.projOut(p));
   }
 
   /** Resolve a project by id or slug. */
   async resolveProject(ref: string): Promise<Project> {
     const r = cleanText(ref, "project", { required: true, max: 200 })!;
     const p =
-      (await first<Project>(this.db, "SELECT * FROM projects WHERE id = ?", r)) ??
-      (await first<Project>(this.db, "SELECT * FROM projects WHERE slug = ?", r.toLowerCase()));
+      (await first<Omit<Project, "url">>(this.db, "SELECT * FROM projects WHERE id = ?", r)) ??
+      (await first<Omit<Project, "url">>(this.db, "SELECT * FROM projects WHERE slug = ?", r.toLowerCase()));
     if (!p) throw new HttpError(404, `project '${r}' not found`);
-    return p;
+    return this.projOut(p);
   }
 
   async getProject(ref: string): Promise<ProjectDetail> {
     const p = await this.resolveProject(ref);
-    const initiatives = await all<Initiative>(
+    const initiatives = await all<Omit<Initiative, "url" | "project_slug">>(
       this.db,
       "SELECT * FROM initiatives WHERE project_id = ? ORDER BY CASE status WHEN 'active' THEN 0 ELSE 1 END, position",
       p.id,
@@ -133,13 +142,14 @@ export class Service {
     }
     return {
       ...p,
-      initiatives: initiatives.map((i): InitiativeSummary => ({ ...i, counts: counts.get(i.id) ?? emptyCounts() })),
+      initiatives: initiatives.map((i): InitiativeSummary => this.initOut({ ...i, project_slug: p.slug, counts: counts.get(i.id) ?? emptyCounts() })),
     };
   }
 
   async updateProject(id: string, patch: ProjectUpdate, actor: string): Promise<Project> {
-    const p = await first<Project>(this.db, "SELECT * FROM projects WHERE id = ?", id);
-    if (!p) throw new HttpError(404, `project '${id}' not found`);
+    const row = await first<Omit<Project, "url">>(this.db, "SELECT * FROM projects WHERE id = ?", id);
+    if (!row) throw new HttpError(404, `project '${id}' not found`);
+    const p = this.projOut(row);
     const changed: string[] = [];
     const name = cleanText(patch.name, "name", { max: 200 });
     if (name !== undefined && name !== p.name) {
@@ -185,9 +195,10 @@ export class Service {
     const description = cleanText(input.description, "description", { max: 20000 }) ?? "";
     const pos = await first<{ m: number | null }>(this.db, "SELECT MAX(position) AS m FROM initiatives WHERE project_id = ?", p.id);
     const ts = now();
-    const initiative: Initiative = {
+    const initiative: Initiative = this.initOut({
       id: newId(),
       project_id: p.id,
+      project_slug: p.slug,
       name,
       description,
       status: "active",
@@ -196,7 +207,7 @@ export class Service {
       created_at: ts,
       updated_at: ts,
       completed_at: null,
-    };
+    });
     await batch(this.db, [
       stmt(
         this.db,
@@ -217,9 +228,13 @@ export class Service {
   }
 
   async getInitiative(id: string): Promise<Initiative> {
-    const i = await first<Initiative>(this.db, "SELECT * FROM initiatives WHERE id = ?", cleanText(id, "initiative", { required: true })!);
+    const i = await first<Omit<Initiative, "url">>(
+      this.db,
+      "SELECT i.*, p.slug AS project_slug FROM initiatives i JOIN projects p ON p.id = i.project_id WHERE i.id = ?",
+      cleanText(id, "initiative", { required: true })!,
+    );
     if (!i) throw new HttpError(404, `initiative '${id}' not found`);
-    return i;
+    return this.initOut(i);
   }
 
   async updateInitiative(id: string, patch: InitiativeUpdate, actor: string): Promise<Initiative> {
@@ -293,14 +308,17 @@ export class Service {
       const title = cleanText(t?.title, `${field}.title`, { required: true, max: 500 })!;
       const type = oneOf<TaskType>(t?.type, TASK_TYPES, `${field}.type`);
       const notes = cleanText(t?.notes, `${field}.notes`, { max: 20000 }) ?? "";
+      const plan = cleanText(t?.plan, `${field}.plan`, { max: 20000 }) ?? "";
       const priority = priorityOf(t?.priority);
       position += 1;
-      return {
+      return this.taskOut({
         id: newId(),
         project_id: i.project_id,
+        project_slug: i.project_slug,
         initiative_id: i.id,
         title,
         notes,
+        plan,
         type,
         status: "todo",
         priority,
@@ -311,7 +329,7 @@ export class Service {
         created_at: ts,
         updated_at: ts,
         completed_at: null,
-      };
+      });
     });
 
     const stmts: D1PreparedStatement[] = [];
@@ -319,12 +337,13 @@ export class Service {
       stmts.push(
         stmt(
           this.db,
-          "INSERT INTO tasks (id, project_id, initiative_id, title, notes, type, status, priority, blocked_reason, assignee, position, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,'todo',?,'','',?,?,?,?)",
+          "INSERT INTO tasks (id, project_id, initiative_id, title, notes, plan, type, status, priority, blocked_reason, assignee, position, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,'todo',?,'','',?,?,?,?)",
           t.id,
           t.project_id,
           t.initiative_id,
           t.title,
           t.notes,
+          t.plan,
           t.type,
           t.priority,
           t.position,
@@ -341,9 +360,13 @@ export class Service {
   }
 
   async getTask(id: string): Promise<Task> {
-    const t = await first<Task>(this.db, "SELECT * FROM tasks WHERE id = ?", cleanText(id, "id", { required: true })!);
+    const t = await first<Omit<Task, "url">>(
+      this.db,
+      "SELECT t.*, p.slug AS project_slug FROM tasks t JOIN projects p ON p.id = t.project_id WHERE t.id = ?",
+      cleanText(id, "id", { required: true })!,
+    );
     if (!t) throw new HttpError(404, `task '${id}' not found`);
-    return t;
+    return this.taskOut(t);
   }
 
   async getTasks(opts: { initiative?: string; project?: string; status?: string[]; limit?: number }): Promise<Task[]> {
@@ -351,18 +374,18 @@ export class Service {
     const params: (string | number)[] = [];
     if (opts.initiative) {
       const i = await this.getInitiative(opts.initiative);
-      where.push("initiative_id = ?");
+      where.push("t.initiative_id = ?");
       params.push(i.id);
     } else if (opts.project) {
       const p = await this.resolveProject(opts.project);
-      where.push("project_id = ?");
+      where.push("t.project_id = ?");
       params.push(p.id);
     } else {
       throw new HttpError(400, "initiative or project is required");
     }
     if (opts.status && opts.status.length > 0) {
       const statuses = opts.status.map((s) => oneOf<TaskStatus>(s, TASK_STATUSES, "status"));
-      where.push(`status IN (${statuses.map(() => "?").join(",")})`);
+      where.push(`t.status IN (${statuses.map(() => "?").join(",")})`);
       params.push(...statuses);
     }
     let limit = 200;
@@ -371,11 +394,12 @@ export class Service {
       limit = opts.limit;
     }
     params.push(limit);
-    return all<Task>(
+    const rows = await all<Omit<Task, "url">>(
       this.db,
-      `SELECT * FROM tasks WHERE ${where.join(" AND ")} ORDER BY ${STATUS_RANK}, priority, position LIMIT ?`,
+      `SELECT t.*, p.slug AS project_slug FROM tasks t JOIN projects p ON p.id = t.project_id WHERE ${where.join(" AND ")} ORDER BY ${STATUS_RANK.replaceAll("status", "t.status")}, t.priority, t.position LIMIT ?`,
       ...params,
     );
+    return rows.map((t) => this.taskOut(t));
   }
 
   async updateTask(id: string, patch: TaskUpdate, actor: string): Promise<Task> {
@@ -396,6 +420,11 @@ export class Service {
     if (notes !== undefined && notes !== t.notes) {
       t.notes = notes;
       changed.push("notes");
+    }
+    const plan = cleanText(patch.plan, "plan", { max: 20000 });
+    if (plan !== undefined && plan !== t.plan) {
+      t.plan = plan;
+      changed.push("plan");
     }
     if (patch.type !== undefined) {
       const type = oneOf<TaskType>(patch.type, TASK_TYPES, "type");
@@ -425,6 +454,7 @@ export class Service {
         changed.push("initiative");
         moved = { from: t.initiative_id, to: target.id };
         t.initiative_id = target.id;
+        t.url = this.taskUrl(t.project_slug, target.id, t.id);
         base.initiative_id = target.id;
       }
     }
@@ -455,10 +485,11 @@ export class Service {
     stmts.unshift(
       stmt(
         this.db,
-        "UPDATE tasks SET initiative_id = ?, title = ?, notes = ?, type = ?, status = ?, priority = ?, blocked_reason = ?, assignee = ?, position = ?, updated_at = ?, completed_at = ? WHERE id = ?",
+        "UPDATE tasks SET initiative_id = ?, title = ?, notes = ?, plan = ?, type = ?, status = ?, priority = ?, blocked_reason = ?, assignee = ?, position = ?, updated_at = ?, completed_at = ? WHERE id = ?",
         t.initiative_id,
         t.title,
         t.notes,
+        t.plan,
         t.type,
         t.status,
         t.priority,

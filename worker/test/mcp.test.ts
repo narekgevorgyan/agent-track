@@ -43,7 +43,8 @@ describe("mcp modern", () => {
     const j: any = await r.json();
     expect(j.result).toMatchObject({ resultType: "complete", supportedVersions: [MODERN], capabilities: { tools: {} } });
     expect(j.result._meta["io.modelcontextprotocol/serverInfo"].name).toBe("agent-track");
-    expect(typeof j.result.instructions).toBe("string");
+    expect(j.result.instructions).toMatch(/create_project/);
+    expect(j.result.instructions).toMatch(/url/);
   });
 
   it("tools/list has 8 tools in stable order with schemas", async () => {
@@ -66,10 +67,12 @@ describe("mcp modern", () => {
     expect(c.result.structuredContent.data.slug).toBe(name.toLowerCase());
     const i = await call("create_initiative", { project: name.toLowerCase(), name: "I" });
     expect(i.result.structuredContent.data.created_by).toBe("test-client");
-    const t = await call("create_tasks", { initiative: i.result.structuredContent.data.id, tasks: [{ title: "x", type: "bug" }] });
-    expect(JSON.parse(t.result.content[0].text).data[0].type).toBe("bug");
-    const u = await call("update_task", { id: t.result.structuredContent.data[0].id, status: "in_progress", actor: "codex" });
-    expect(u.result.structuredContent.data).toMatchObject({ status: "in_progress", assignee: "codex" });
+    expect(i.result.structuredContent.data.url).toBe(`https://track.test/#/p/${name.toLowerCase()}/i/${i.result.structuredContent.data.id}`);
+    const t = await call("create_tasks", { initiative: i.result.structuredContent.data.id, tasks: [{ title: "x", type: "bug", plan: "1. a" }] });
+    expect(JSON.parse(t.result.content[0].text).data[0]).toMatchObject({ type: "bug", plan: "1. a" });
+    expect(t.result.structuredContent.data[0].url).toMatch(/^https:\/\/track\.test\/#\/p\/.+\/i\/.+\/t\/.+$/);
+    const u = await call("update_task", { id: t.result.structuredContent.data[0].id, status: "in_progress", plan: "1. b", actor: "codex" });
+    expect(u.result.structuredContent.data).toMatchObject({ status: "in_progress", assignee: "codex", plan: "1. b" });
     const p = await call("get_project", { project: name });
     expect(p.result.structuredContent.data.initiatives[0].counts.in_progress).toBe(1);
     const list = await call("get_tasks", { project: name, status: ["in_progress"] });

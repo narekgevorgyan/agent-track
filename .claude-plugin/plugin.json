@@ -1,7 +1,7 @@
 {
   "name": "agent-track",
   "description": "Persistent project → initiative → task tracking for coding agents, self-hosted on Cloudflare. Ships the MCP server registration and a skill that teaches the agent when and how to track work.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "Narek Gevorgyan" },
   "homepage": "https://github.com/narekgevorgyan/agent-track",
   "repository": "https://github.com/narekgevorgyan/agent-track",

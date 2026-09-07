@@ -78,7 +78,7 @@ Claude Desktop and claude.ai custom connectors only support OAuth or no auth; us
 
 ## What the agent does with it
 
-The bundled skill tells the agent to create a project named after the repo, put the goal into an initiative, write the plan as typed tasks in one call, mark each task in progress before touching it, block with a concrete reason instead of stalling, leave notes as it learns things, mark done only after verifying, and list what is left at the end of a session. You can also just ask: "put this on the board", "what is blocked?", "mark the cookie bug done".
+The bundled skill tells the agent to create a project named after the repo, put the goal into an initiative, write the work as typed tasks in one call, write a short plan on each task and mark it in progress before touching it, block with a concrete reason instead of stalling, leave notes as it learns things, mark done only after verifying, and list what is left at the end of a session. Each task carries a plan you can read on the board before the agent starts. You can also just ask: "put this on the board", "what is blocked?", "mark the cookie bug done".
 
 ## The eight tools
 
@@ -90,10 +90,12 @@ The bundled skill tells the agent to create a project named after the repo, put 
 | `create_initiative` | New goal-sized chunk of work in a project |
 | `update_initiative` | Rename, describe, or set `active` / `done` / `cancelled` |
 | `get_tasks` | Tasks for an initiative or a whole project, filtered by status, ordered by status then priority |
-| `create_tasks` | One or more tasks, each with a title and a type |
-| `update_task` | Status (blocked needs a reason), note, title, notes, type, priority, or move to another initiative |
+| `create_tasks` | One or more tasks, each with a title and a type, optionally a plan |
+| `update_task` | Status (blocked needs a reason), plan, note, title, notes, type, priority, or move to another initiative |
 
-Every write records who did it (the MCP client name, an explicit `actor`, or `web`) in a history you can read per task.
+Every write records who did it (the MCP client name, an explicit `actor`, or `web`) in a history you can read per task. Every result carries a `url` that opens the board at that project, initiative, or task, so the agent can hand you a link.
+
+The server also sends the condensed protocol as MCP `instructions`, which clients like Claude Code load into context on connection. So an agent follows the workflow even before the skill is installed; the skill adds the fuller guidance and examples.
 
 ## Security notes
 

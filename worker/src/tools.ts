@@ -49,7 +49,7 @@ export const TOOLS: readonly ToolDef[] = [
   },
   {
     name: "get_project",
-    description: "Get a project with its initiatives; each initiative carries task counts by status (todo, in_progress, blocked, done, cancelled).",
+    description: "Get a project with its initiatives; each initiative carries task counts by status (todo, in_progress, blocked, done, cancelled) and a url for the browser.",
     inputSchema: obj({ project: str("Project slug or id") }, ["project"]),
     outputSchema: OUTPUT,
   },
@@ -90,7 +90,8 @@ export const TOOLS: readonly ToolDef[] = [
   },
   {
     name: "create_tasks",
-    description: "Create one or more tasks in an initiative. Each task needs an imperative title and a type: bug | feature | improvement | chore | research.",
+    description:
+      "Create one or more tasks in an initiative. Each task needs an imperative title and a type: bug | feature | improvement | chore | research. Optional plan (markdown) records how you intend to do it. Returned tasks carry a url; show it to the user so they can open the task in the browser.",
     inputSchema: obj(
       {
         initiative: str("Initiative id"),
@@ -103,6 +104,7 @@ export const TOOLS: readonly ToolDef[] = [
               title: str("Imperative, specific, one verifiable outcome"),
               type: { type: "string", enum: TASK_TYPES, description: "bug | feature | improvement | chore | research" },
               notes: str("Details, acceptance criteria (markdown)"),
+              plan: str("How you intend to do it: numbered steps, files to touch, how to verify (markdown)"),
               priority: { type: "integer", minimum: 0, maximum: 4, description: "0 = urgent … 4 = someday (default 2)" },
             },
             required: ["title", "type"],
@@ -117,7 +119,7 @@ export const TOOLS: readonly ToolDef[] = [
   {
     name: "update_task",
     description:
-      "Update a task in one call: set status (todo | in_progress | blocked | done | cancelled; blocked requires reason), append a progress note, edit title/notes/type/priority, or move it to another initiative.",
+      "Update a task in one call: set status (todo | in_progress | blocked | done | cancelled; blocked requires reason), write or revise the plan, append a progress note, edit title/notes/type/priority, or move it to another initiative. Write the plan and set in_progress in the same call before starting work. The result carries a url; show it to the user.",
     inputSchema: obj(
       {
         id: str("Task id"),
@@ -126,6 +128,7 @@ export const TOOLS: readonly ToolDef[] = [
         note: str("Progress note appended to the task log"),
         title: str("New title"),
         notes: str("New long-form notes (markdown), replaces existing"),
+        plan: str("The plan for this task (markdown), replaces existing. Write it before starting work."),
         type: { type: "string", enum: TASK_TYPES, description: "New type" },
         priority: { type: "integer", minimum: 0, maximum: 4, description: "New priority" },
         initiative: str("Move to this initiative id (same project)"),

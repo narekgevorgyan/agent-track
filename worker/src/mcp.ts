@@ -10,12 +10,24 @@ import { HttpError, json } from "./util";
 
 export const MODERN_VERSION = "2026-07-28";
 export const LEGACY_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"] as const;
-const SERVER_INFO = { name: "agent-track", version: "0.1.0" };
-const INSTRUCTIONS = [
-  "agent-track keeps persistent work tracking: project → initiatives → typed tasks (bug | feature | improvement | chore | research).",
-  "Start with create_project (repo folder name), then create_initiative for the goal, then create_tasks for the plan.",
-  "Before working on a task call update_task {status: in_progress}; when stuck {status: blocked, reason}; when verified {status: done, note}.",
-].join(" ");
+const SERVER_INFO = { name: "agent-track", version: "0.2.0" };
+/** Condensed skill. Clients load this at connection time, so agents follow the protocol even without SKILL.md installed. */
+const INSTRUCTIONS = `agent-track is a persistent, shared work board: Project (one per repo) → Initiative (a goal) → Task (one verifiable step, typed bug | feature | improvement | chore | research; status todo | in_progress | blocked | done | cancelled). Humans watch it live in a browser.
+
+Use it instead of the session todo list whenever work has more than a few steps, spans sessions or agents, could get blocked, or the user asks about tasks, todos, initiatives or the board.
+
+Protocol:
+1. create_project {name: <repo folder name>} — idempotent, returns the existing project.
+2. get_project {project} to see initiatives; reuse one that fits, else create_initiative {project, name, description: goal + context}.
+3. create_tasks {initiative, tasks: [{title, type, priority?, notes?, plan?}]} — write the whole plan in one call. Titles are imperative and specific; one task = one verifiable outcome.
+4. Before touching a task: update_task {id, plan: "numbered steps, files, how to verify", status: "in_progress"} in one call. The plan is shown to the human; keep it short and concrete.
+5. While working: update_task {id, note} for findings that matter.
+6. Stuck: update_task {id, status: "blocked", reason} with a reason a human can act on, then move to the next todo task.
+7. Verified done (tests run, output checked): update_task {id, status: "done", note: one-line outcome}. Never mark done on hope.
+8. Discovered work → create_tasks immediately. All tasks done → update_initiative {id, status: "done"}.
+9. Session end: get_tasks {project, status: ["todo","in_progress","blocked"]} and tell the user what remains.
+
+Every project, initiative and task result includes a url. After creating or updating, show the user the relevant url so they can open it in the browser. Never delete; cancel with a note. Install the full skill with: npx skills add narekgevorgyan/agent-track`;
 
 const META_VERSION = "io.modelcontextprotocol/protocolVersion";
 const META_CLIENT_INFO = "io.modelcontextprotocol/clientInfo";
@@ -50,7 +62,7 @@ export async function handleMcp(request: Request, env: Env): Promise<Response> {
     return json(rpcError(null, -32600, "invalid request"), 400);
   }
   const req = body as RpcRequest;
-  const svc = new Service(env.DB);
+  const svc = new Service(env.DB, new URL(request.url).origin);
   const meta = (req.params?._meta ?? null) as Record<string, unknown> | null;
   const modern = !!meta && typeof meta[META_VERSION] === "string";
   return modern ? handleModern(request, req, meta!, svc) : handleLegacy(req, svc);
@@ -190,6 +202,7 @@ async function runTool(name: string, a: Record<string, unknown>, actor: string, 
           note: a.note as never,
           title: a.title as never,
           notes: a.notes as never,
+          plan: a.plan as never,
           type: a.type as never,
           priority: a.priority as never,
           initiative: a.initiative as never,

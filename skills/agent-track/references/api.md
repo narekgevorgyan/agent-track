@@ -20,9 +20,9 @@ The web UI talks to the Worker over this JSON API. Agents should use the MCP too
 | PATCH | `/api/initiatives/:id` | `{name?, description?, status?, position?}` | `Initiative` |
 | GET | `/api/initiatives/:id/tasks` | | `Task[]` ordered by status, priority, position |
 | GET | `/api/initiatives/:id/events?limit=50` | | `Event[]` |
-| POST | `/api/initiatives/:id/tasks` | `{title, type, notes?, priority?}` | `Task` (201) |
+| POST | `/api/initiatives/:id/tasks` | `{title, type, notes?, plan?, priority?}` | `Task` (201) |
 | GET | `/api/tasks/:id` | | `Task` |
-| PATCH | `/api/tasks/:id` | `{title?, notes?, type?, priority?, status?, reason?, note?, position?, initiative?}` | `Task` |
+| PATCH | `/api/tasks/:id` | `{title?, notes?, plan?, type?, priority?, status?, reason?, note?, position?, initiative?}` | `Task` |
 | DELETE | `/api/tasks/:id` | | `Task` (soft: status → `cancelled`) |
 | GET | `/api/tasks/:id/events?limit=100` | | `Event[]` |
 | GET | `/api/events?project=:idOrSlug&interval=3000` | | SSE stream |
@@ -31,8 +31,9 @@ The web UI talks to the Worker over this JSON API. Agents should use the MCP too
 
 ```jsonc
 // Task
-{ "id": "1m1ts46k7f87r4f3", "project_id": "…", "initiative_id": "…",
-  "title": "Add WebAuthn registration endpoint", "notes": "markdown…",
+{ "id": "1m1ts46k7f87r4f3", "project_id": "…", "project_slug": "coinstats-web", "initiative_id": "…",
+  "url": "https://<worker>/#/p/coinstats-web/i/<initiative>/t/1m1ts46k7f87r4f3",
+  "title": "Add WebAuthn registration endpoint", "notes": "markdown…", "plan": "1. … 2. …",
   "type": "feature",              // bug | feature | improvement | chore | research
   "status": "in_progress",        // todo | in_progress | blocked | done | cancelled
   "priority": 1,                  // 0 urgent … 4 someday
@@ -44,6 +45,8 @@ The web UI talks to the Worker over this JSON API. Agents should use the MCP too
   "actor": "web", "kind": "status",   // created | status | updated | note
   "data": { "from": "todo", "to": "blocked", "reason": "…" }, "created_at": 1788000000000 }
 ```
+
+Projects carry `url` (`/#/p/<slug>`) and initiatives carry `project_slug` and `url` (`/#/p/<slug>/i/<id>`). The task url opens the initiative board with that task's drawer open.
 
 ## SSE stream
 

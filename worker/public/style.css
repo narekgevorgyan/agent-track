@@ -172,6 +172,9 @@ textarea { width: 100%; resize: vertical; min-height: 90px; line-height: 1.5; }
 .prio { font-family: ui-monospace, Menlo, monospace; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; padding: 0 5px; }
 .prio.p0 { color: #fff; background: var(--st-blocked); border-color: transparent; }
 .prio.p1 { color: var(--st-in_progress); border-color: var(--st-in_progress); }
+.has-plan { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); border-radius: 5px; padding: 0 5px; }
+.plan-view { border-left: 3px solid var(--accent); }
+.plan-view:empty::before { content: "No plan yet. The agent writes one before starting; click to add yours."; }
 .who { display: inline-flex; align-items: center; gap: 4px; }
 .who::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .add-task { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-bottom: 8px; }

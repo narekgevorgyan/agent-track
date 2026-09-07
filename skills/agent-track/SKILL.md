@@ -49,10 +49,11 @@ Keep using the built-in todo list for short, single-session checklists nobody el
    ]}
    ```
 
-4. **Before working on a task** mark it in progress. This stamps you as assignee so humans see who has it.
+4. **Before working on a task, write its plan and mark it in progress in one call.** The plan is short and concrete: numbered steps, files you will touch, how you will verify. Humans read it on the board before you start; this also stamps you as assignee.
    ```json
-   update_task {"id": "<id>", "status": "in_progress"}
+   update_task {"id": "<id>", "status": "in_progress", "plan": "1. Add POST /auth/passkeys/register in src/auth.ts\n2. Store credential in `passkeys` table (migration 0007)\n3. Verify: curl returns 201, vitest auth.test.ts green"}
    ```
+   You may also pass `plan` inside `create_tasks` items when you already know the approach.
 
 5. **While working**, leave short notes when you learn something that matters.
    ```json
@@ -71,6 +72,9 @@ Keep using the built-in todo list for short, single-session checklists nobody el
 
 8. **Discovered work** goes on the board immediately as new tasks, not in your head.
 
+   **Share links.** Every project, initiative and task result has a `url`. After creating an initiative or tasks, or when you block something, show the user the url so they can open it in the browser:
+   > Board: https://your-worker.workers.dev/#/p/coinstats-web/i/1m1ts3h1eweeh66j
+
 9. **When every task in an initiative is done**, close it:
    ```json
    update_initiative {"id": "<id>", "status": "done"}
@@ -88,6 +92,7 @@ Keep using the built-in todo list for short, single-session checklists nobody el
 - Pick the type honestly. A regression is a `bug` even if the fix is a feature-sized change.
 - Priority 0 is urgent, 2 is normal (default), 4 is someday.
 - Never mark done on hope. If you could not verify, add a note saying what is unverified and leave it `in_progress`.
+- Revise the plan when reality diverges: `update_task {"id", "plan": "..."}` replaces it; the change is logged.
 - Never delete. Cancel with a note explaining why.
 - Pass `actor` only when you are acting on behalf of a named agent or person; otherwise the server records your MCP client name.
 

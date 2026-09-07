@@ -9,6 +9,7 @@ export const INITIATIVE_STATUSES: readonly InitiativeStatus[] = ["active", "done
 export interface Project {
   id: string;
   slug: string;
+  url: string;
   name: string;
   description: string;
   archived: number;
@@ -19,6 +20,8 @@ export interface Project {
 export interface Initiative {
   id: string;
   project_id: string;
+  project_slug: string;
+  url: string;
   name: string;
   description: string;
   status: InitiativeStatus;
@@ -32,9 +35,12 @@ export interface Initiative {
 export interface Task {
   id: string;
   project_id: string;
+  project_slug: string;
   initiative_id: string;
+  url: string;
   title: string;
   notes: string;
+  plan: string;
   type: TaskType;
   status: TaskStatus;
   priority: number;
@@ -76,6 +82,7 @@ export interface NewTask {
   title: string;
   type: TaskType;
   notes?: string;
+  plan?: string;
   priority?: number;
 }
 
@@ -85,6 +92,7 @@ export interface TaskUpdate {
   note?: string;
   title?: string;
   notes?: string;
+  plan?: string;
   type?: TaskType;
   priority?: number;
   initiative?: string;

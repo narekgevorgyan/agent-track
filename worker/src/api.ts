@@ -50,7 +50,7 @@ route("GET", "/api/initiatives/:id/events", async ({ svc, params, url }) =>
   json(await svc.getEvents({ initiative: params.id, limit: Number(url.searchParams.get("limit") ?? 50) })),
 );
 route("POST", "/api/initiatives/:id/tasks", async ({ req, svc, params }) => {
-  const b = await body<{ title: string; type: never; notes?: string; priority?: number }>(req);
+  const b = await body<{ title: string; type: never; notes?: string; plan?: string; priority?: number }>(req);
   const [task] = await svc.createTasks({ initiative: params.id, tasks: [b] }, WEB);
   return json(task, 201);
 });
@@ -74,7 +74,7 @@ route("GET", "/api/events", async ({ svc, url, req }) => {
 
 export async function handleApi(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const svc = new Service(env.DB);
+  const svc = new Service(env.DB, url.origin);
   let pathMatched = false;
   for (const r of routes) {
     const m = r.pattern.exec(url.pathname);

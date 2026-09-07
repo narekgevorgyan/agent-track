@@ -103,7 +103,9 @@
     const h = location.hash.replace(/^#\/?/, "");
     const parts = h.split("/").filter(Boolean);
     if (parts[0] === "p" && parts[1]) {
-      if (parts[2] === "i" && parts[3]) return { view: "initiative", slug: decodeURIComponent(parts[1]), initiative: parts[3] };
+      if (parts[2] === "i" && parts[3]) {
+        return { view: "initiative", slug: decodeURIComponent(parts[1]), initiative: parts[3], task: parts[4] === "t" ? parts[5] : undefined };
+      }
       return { view: "project", slug: decodeURIComponent(parts[1]) };
     }
     return { view: "home" };
@@ -111,10 +113,11 @@
   async function navigate() {
     S.route = parseRoute();
     S.descOpen = false;
-    closeDrawer();
+    if (S.drawerTaskId !== S.route.task) closeDrawer();
     try {
       await loadForRoute();
       render();
+      if (S.route.task && S.drawerTaskId !== S.route.task) openDrawer(S.route.task);
     } catch (e) {
       fail(e);
       $("#main").innerHTML = `<div class="empty"><h2>Not found</h2><p>${esc(e.message)}</p></div>`;
@@ -294,7 +297,7 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
     const cardHtml = (t) => `<div class="card ${t.status}" draggable="true" data-task="${t.id}">
         <div class="title">${esc(t.title)}</div>
         ${t.status === "blocked" && t.blocked_reason ? `<div class="reason">⚠ ${esc(t.blocked_reason)}</div>` : ""}
-        <div class="meta">${chip(t.type)} ${prio(t.priority)} ${t.assignee ? `<span class="who">${esc(t.assignee)}</span>` : ""}<span class="status-menu">${statusSelect(t.status)}</span></div>
+        <div class="meta">${chip(t.type)} ${prio(t.priority)} ${t.plan ? `<span class="has-plan" title="Has a plan">plan</span>` : ""} ${t.assignee ? `<span class="who">${esc(t.assignee)}</span>` : ""}<span class="status-menu">${statusSelect(t.status)}</span></div>
       </div>`;
     const col = (s) => {
       const items = s === "done" && S.showCancelled ? [...byStatus("done"), ...byStatus("cancelled")] : byStatus(s);
@@ -328,16 +331,28 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
   }
 
   // ---------- drawer ----------
+  function initiativeHash() {
+    return `#/p/${encodeURIComponent(S.route.slug)}/i/${S.route.initiative}`;
+  }
   async function openDrawer(taskId) {
     S.drawerTaskId = taskId;
     $("#drawer").hidden = false;
     $("#drawer-backdrop").hidden = false;
+    if (S.route.view === "initiative" && S.route.task !== taskId) {
+      S.route.task = taskId;
+      history.replaceState(null, "", `${initiativeHash()}/t/${taskId}`);
+    }
     await renderDrawer();
   }
   function closeDrawer() {
+    const wasOpen = S.drawerTaskId !== null;
     S.drawerTaskId = null;
     $("#drawer").hidden = true;
     $("#drawer-backdrop").hidden = true;
+    if (wasOpen && S.route.view === "initiative" && S.route.task) {
+      S.route.task = undefined;
+      history.replaceState(null, "", initiativeHash());
+    }
   }
   async function renderDrawer() {
     const id = S.drawerTaskId;
@@ -363,6 +378,7 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
     $("#drawer").innerHTML = `
       <div class="drawer-head">${chip(t.type)} ${prio(t.priority)} <span class="hint">${STATUS_LABEL[t.status]}${t.assignee ? ` · ${esc(t.assignee)}` : ""}</span><span class="spacer"></span>
         <button class="btn small ghost" data-copy-id title="Copy task id">${esc(t.id)}</button>
+        <button class="btn small ghost" data-copy-link title="Copy link to this task">Link</button>
         <button class="btn small ghost" data-close-drawer>✕</button></div>
       <input class="title-input" data-field="title" value="${esc(t.title)}" />
       <div class="row">
@@ -372,6 +388,7 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
       </div>
       ${t.status === "blocked" ? `<div class="reason">⚠ ${esc(t.blocked_reason)}</div>` : ""}
       <div class="field"><label>Initiative</label><select data-move>${initiatives.map((i) => `<option value="${i.id}" ${i.id === t.initiative_id ? "selected" : ""}>${esc(i.name)}</option>`).join("")}</select></div>
+      <div class="field"><label>Plan</label><div class="notes-view plan-view" data-plan-view>${t.plan ? md(t.plan) : ""}</div><textarea data-plan-edit hidden>${esc(t.plan)}</textarea></div>
       <div class="field"><label>Notes</label><div class="notes-view" data-notes-view>${t.notes ? md(t.notes) : ""}</div><textarea data-notes-edit hidden>${esc(t.notes)}</textarea></div>
       <div class="field add-note"><label>Add a note</label><textarea data-note placeholder="Progress, findings, links… (⌘/Ctrl+Enter to save)"></textarea><div><button class="btn small primary" data-add-note>Add note</button></div></div>
       <div class="field"><label>History</label><div class="log">${events.map(eventLine).join("") || '<p class="hint">Nothing yet.</p>'}</div></div>
@@ -573,6 +590,14 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
       const id = S.drawerTaskId;
       if (t.matches("[data-close-drawer]")) return closeDrawer();
       if (t.matches("[data-copy-id]")) { navigator.clipboard?.writeText(id); return toast("Task id copied"); }
+      if (t.matches("[data-copy-link]")) { navigator.clipboard?.writeText(`${location.origin}/${initiativeHash()}/t/${id}`); return toast("Link copied"); }
+      if (t.matches("[data-plan-view]")) {
+        t.hidden = true;
+        const ta = $("[data-plan-edit]", drawer);
+        ta.hidden = false;
+        ta.focus();
+        return;
+      }
       if (t.matches("[data-notes-view]")) {
         t.hidden = true;
         const ta = $("[data-notes-edit]", drawer);
@@ -598,6 +623,12 @@ create_tasks { "initiative": "…", "tasks": [{ "title": "…", "type": "feature
       if (t.matches("[data-field='title']")) return editTask(id, { title: t.value });
     });
     drawer.addEventListener("focusout", (e) => {
+      if (e.target.matches("[data-plan-edit]")) {
+        const cur = S.tasks.find((x) => x.id === S.drawerTaskId);
+        if (cur && e.target.value.trim() !== cur.plan) editTask(S.drawerTaskId, { plan: e.target.value });
+        else renderDrawer();
+        return;
+      }
       if (e.target.matches("[data-notes-edit]")) {
         const cur = S.tasks.find((x) => x.id === S.drawerTaskId);
         if (cur && e.target.value.trim() !== cur.notes) editTask(S.drawerTaskId, { notes: e.target.value });

@@ -132,6 +132,24 @@ describe("tasks", () => {
     expect((await s.getTasks({ project: name })).map((t) => t.id)).toEqual([a.id, b.id]);
     await expect(s.getTasks({})).rejects.toMatchObject({ status: 400 });
   });
+  it("stores a plan at creation and via update, and every object carries a url", async () => {
+    const svc2 = new Service(env.DB, "https://track.example");
+    const name = uniq("u");
+    const p = await svc2.createProject({ name }, "t");
+    expect(p.url).toBe(`https://track.example/#/p/${name}`);
+    const i = await svc2.createInitiative({ project: name, name: "I" }, "t");
+    expect(i.url).toBe(`${p.url}/i/${i.id}`);
+    const [a, b] = await svc2.createTasks({ initiative: i.id, tasks: [{ title: "a", type: "bug", plan: "1. look 2. fix" }, { title: "b", type: "bug" }] }, "t");
+    expect(a.plan).toBe("1. look 2. fix");
+    expect(a.url).toBe(`${i.url}/t/${a.id}`);
+    const u = await svc2.updateTask(b.id, { plan: "step one", status: "in_progress" }, "codex");
+    expect(u).toMatchObject({ plan: "step one", status: "in_progress", url: `${i.url}/t/${b.id}` });
+    expect((await svc2.getEvents({ task: b.id }))[0].data).toMatchObject({ changed: ["plan"] });
+    expect((await svc2.getTasks({ initiative: i.id }))[0].url).toContain("/t/");
+    expect((await svc2.getProject(name)).initiatives[0].url).toBe(i.url);
+    const s0 = svc();
+    expect((await s0.getTask(a.id)).url).toBe(`/#/p/${name}/i/${i.id}/t/${a.id}`);
+  });
   it("counts roll up per initiative in getProject and per project in getProjects", async () => {
     const { s, i, name } = await seed();
     const [a] = await s.createTasks({ initiative: i.id, tasks: [{ title: "a", type: "bug" }, { title: "b", type: "bug" }] }, "t");
